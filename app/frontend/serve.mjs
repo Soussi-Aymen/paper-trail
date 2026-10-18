@@ -1,4 +1,4 @@
-import { createServer } from 'node:http'
+import { createServer, request as forward } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, join, normalize } from 'node:path'
 
@@ -12,13 +12,43 @@ const types = {
   '.json': 'application/json',
 }
 
+const apiTarget = new URL(process.env.API_PROXY_TARGET ?? 'http://backend:8000')
+
 const server = createServer((req, res) => {
-  void serve(req.url ?? '/', res)
+  const url = new URL(req.url ?? '/', 'http://127.0.0.1')
+  if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+    proxyApi(req, url, res)
+    return
+  }
+  void serve(url.pathname, res)
 })
 
-async function serve(rawUrl, res) {
-  const url = new URL(rawUrl, 'http://127.0.0.1')
-  const path = normalize(join(root, decodeURIComponent(url.pathname)))
+function proxyApi(req, url, res) {
+  const path = url.pathname.replace(/^\/api/, '') || '/'
+  const upstream = forward(
+    {
+      hostname: apiTarget.hostname,
+      port: apiTarget.port || 80,
+      path: `${path}${url.search}`,
+      method: req.method,
+      headers: { ...req.headers, host: apiTarget.host },
+    },
+    (upstreamRes) => {
+      res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers)
+      upstreamRes.pipe(res)
+    },
+  )
+  upstream.on('error', () => {
+    if (!res.headersSent) {
+      res.writeHead(502)
+    }
+    res.end()
+  })
+  req.pipe(upstream)
+}
+
+async function serve(pathname, res) {
+  const path = normalize(join(root, decodeURIComponent(pathname)))
   if (!path.startsWith(root)) {
     res.writeHead(400)
     res.end()
@@ -48,4 +78,4 @@ async function readBody(path) {
   }
 }
 
-server.listen(5173, '0.0.0.0')
+server.listen(Number(process.env.PORT ?? 5173), '0.0.0.0')

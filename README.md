@@ -6,24 +6,15 @@ Models run on [Nebius Token Factory](https://docs.tokenfactory.nebius.com/). Pap
 
 ## Run locally
 
-Fill in `.env` from `.env.example`. You need a Token Factory key and three model ids (a small chat model, a large chat model, and an embedding model). List ids with the probe below. Set `SCHOLARLY_CONTACT_EMAIL` so OpenAlex and Crossref can see who is calling. Set `OPENALEX_API_KEY` from [openalex.org/settings/api](https://openalex.org/settings/api). The free key includes a daily request budget.
+Copy `.env.example` to `.env`. Set a Token Factory key, `CHAT_MODEL_SMALL`, `CHAT_MODEL_LARGE`, `EMBEDDING_MODEL`, `SCHOLARLY_CONTACT_EMAIL`, and `OPENALEX_API_KEY`.
 
 ```bash
-docker compose up db -d
-cd app/backend
-uv sync
-uv run python -m scripts.check_token_factory
-uv run uvicorn papertrail.main:app --reload --host 0.0.0.0 --port 8000
+docker compose up --build
 ```
 
-In another shell, from the repo root:
+Open http://localhost:5173. The sun and moon control at the top right is the same height as the Papertrail word. It switches between day and night, keeps the choice in the browser, and either theme can be selected again at any time.
 
-```bash
-pnpm install
-pnpm --filter frontend dev
-```
-
-Open http://localhost:5173. The Vite dev server proxies `/api` to the API. The sun and moon control at the top right is the same height as the Papertrail word. It switches between day and night, keeps the choice in the browser, and either theme can be selected again at any time.
+To work on the code with reload instead of the containers, start only the database with `docker compose up db -d`, then run the API from `app/backend` with `uv sync` and `uv run uvicorn papertrail.main:app --reload --host 0.0.0.0 --port 8000`. In another shell, from the repo root, run `pnpm install` and `pnpm --filter frontend dev`. List model ids with `uv run python -m scripts.check_token_factory` from `app/backend`.
 
 Create a project, paste DOIs or titles (or BibTeX), resolve the seeds, then click Analyze. The trace updates while the job runs. Opening a project shows the papers you started from, a short list to check, and the other article titles that were found, each with year, venue, and a source link. Each result in the short list has a trust badge, the checks behind it, a short explanation, and source links. Accept and reject re-rank from cached embeddings.
 
@@ -106,12 +97,6 @@ curl -X POST http://localhost:8000/projects/$PROJECT_ID/evaluate
 
 ## Deploy
 
-Backend and frontend images build separately from the model endpoint.
-
-```bash
-docker compose up --build
-```
-
-The API image is `app/backend/Dockerfile` (uv, non-root user, health check on `/health`). The UI image is `app/frontend/Dockerfile`. Its build context is the repo root because the pnpm lockfile lives there. Postgres keeps a data volume and is the one service with a writable data directory.
+`docker compose up --build` builds the API and UI images separately from the model endpoint. The API image is `app/backend/Dockerfile` (uv, non-root user, health check on `/health`). The UI image is `app/frontend/Dockerfile`. Its build context is the repo root because the pnpm lockfile lives there. Postgres keeps a data volume and is the one service with a writable data directory.
 
 Do not commit `.env`.
