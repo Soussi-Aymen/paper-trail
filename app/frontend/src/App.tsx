@@ -144,27 +144,34 @@ export default function App() {
     }
   }
 
+  const trace = latestTrace(events)
+
   return (
     <main>
-      <header className="top">
+      <header className="bar">
         <p className="mark">Papertrail</p>
-        <h1>From papers you trust to papers you can check.</h1>
+        <p className="tagline">Start from papers you trust. Keep the ones you can defend.</p>
       </header>
       {error ? <p className="error">{error}</p> : null}
       <section className="layout">
-        <div>
+        <aside className="rail">
           <h2>Projects</h2>
           <ul className="projects">
             {projects.map((project) => (
               <li key={project.id}>
-                <button type="button" onClick={() => void loadProject(project.id).catch((err: unknown) => setError(message(err)))}>
-                  {project.name}
+                <button
+                  type="button"
+                  className={selected?.id === project.id ? 'current' : ''}
+                  onClick={() => void loadProject(project.id).catch((err: unknown) => setError(message(err)))}
+                >
+                  <span>{project.name}</span>
+                  <span className={`status ${project.status}`}>{project.status}</span>
                 </button>
-                <span>{project.status}</span>
               </li>
             ))}
           </ul>
           <form onSubmit={(event) => void createProject(event)}>
+            <h2>New project</h2>
             <label>
               Name
               <input value={name} onChange={(event) => setName(event.target.value)} required />
@@ -173,81 +180,107 @@ export default function App() {
               Research question
               <textarea value={question} onChange={(event) => setQuestion(event.target.value)} required />
             </label>
-            <button type="submit" disabled={busy}>Create project</button>
+            <button type="submit" className="secondary" disabled={busy}>Create</button>
           </form>
-        </div>
+        </aside>
         {selected ? (
-          <div>
-            <h2>{selected.name}</h2>
-            <p>{selected.research_question}</p>
-            <p>Status: {selected.status}</p>
-            <form onSubmit={(event) => void submitSeeds(event)}>
-              <label>
-                DOIs or titles, one per line
-                <textarea value={seedText} onChange={(event) => setSeedText(event.target.value)} />
-              </label>
-              <label>
-                BibTeX
-                <textarea value={bibtex} onChange={(event) => setBibtex(event.target.value)} />
-              </label>
-              <button type="submit" disabled={busy}>Resolve seeds</button>
-            </form>
-            <SeedPreview resolved={resolved} unresolved={unresolved} onOpen={setReading} />
-            <button type="button" onClick={() => void analyze()} disabled={busy}>Analyze</button>
-            <h3>Trace</h3>
-            <ol className="trace">
-              {events.map((item) => (
-                <li key={item.id}>
-                  <strong>{item.step}</strong> · {item.tool}
-                  <div>{item.output_summary}</div>
-                </li>
+          <div className="work">
+            <header className="project-head">
+              <div>
+                <h1>{selected.name}</h1>
+                <p>{selected.research_question}</p>
+              </div>
+              <span className={`status ${selected.status}`}>{selected.status}</span>
+            </header>
+            <section>
+              <h2>Papers to check</h2>
+              {results.length === 0 ? <p className="muted">Resolve two or three seeds, then Analyze. You will get a short list, not a dump.</p> : null}
+              {results.map((paper) => (
+                <article key={paper.id} className="card">
+                  <header>
+                    <h3>
+                      <button type="button" className="title" onClick={() => setReading(paper)}>{paper.title}</button>
+                    </h3>
+                    <span className={`badge ${paper.badge}`}>{paper.badge}</span>
+                  </header>
+                  <p className="meta">
+                    {authorNames(paper)}
+                    {paper.year ? ` · ${paper.year}` : ''}
+                    {paper.venue ? ` · ${paper.venue}` : ''}
+                    {` · ${paper.citation_count} citations`}
+                  </p>
+                  {paper.explanation ? <p>{paper.explanation}</p> : null}
+                  {paper.connected_seeds.length > 0 ? <p className="muted">Linked to {paper.connected_seeds.join('; ')}</p> : null}
+                  <div className="actions">
+                    <button type="button" className="primary" onClick={() => setReading(paper)}>
+                      {paper.pdf_url ? 'Read PDF' : 'Open paper'}
+                    </button>
+                    <button type="button" className="secondary" onClick={() => void sendFeedback(paper.id, 'accept')}>Accept</button>
+                    <button type="button" className="secondary" onClick={() => void sendFeedback(paper.id, 'reject')}>Reject</button>
+                  </div>
+                  <details>
+                    <summary>Why this badge</summary>
+                    <ul>
+                      {paper.checks.map((check) => (
+                        <li key={check.check_name}>
+                          <strong>{check.check_name}</strong> ({check.outcome}): {String(check.evidence.fact ?? '')}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </article>
               ))}
-            </ol>
-            <h3>Results</h3>
-            {results.map((paper) => (
-              <article key={paper.id} className="card">
-                <header>
-                  <h4>
-                    <button type="button" className="title" onClick={() => setReading(paper)}>{paper.title}</button>
-                  </h4>
-                  <span className={`badge ${paper.badge}`}>{paper.badge}</span>
-                </header>
-                <p>
-                  {authorNames(paper)} {paper.year ? `(${paper.year})` : ''} {paper.venue ?? ''}
-                </p>
-                <p>{paper.citation_count} citations{paper.rank_score != null ? ` · score ${paper.rank_score}` : ''}</p>
-                {paper.connected_seeds.length > 0 ? <p>Connects to: {paper.connected_seeds.join('; ')}</p> : null}
-                {paper.explanation ? <p>{paper.explanation}</p> : null}
-                <p>
-                  {paper.source_urls.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noreferrer">{url}</a>
-                  ))}
-                </p>
-                <details>
-                  <summary>Evidence</summary>
-                  <ul>
-                    {paper.checks.map((check) => (
-                      <li key={check.check_name}>
-                        <strong>{check.check_name}</strong> ({check.outcome}): {String(check.evidence.fact ?? '')}
-                        {check.evidence.source_url ? (
-                          <a href={String(check.evidence.source_url)} target="_blank" rel="noreferrer"> source</a>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-                <div className="actions">
-                  <button type="button" onClick={() => void sendFeedback(paper.id, 'accept')}>Accept</button>
-                  <button type="button" onClick={() => void sendFeedback(paper.id, 'reject')}>Reject</button>
-                </div>
-              </article>
-            ))}
+            </section>
+            <section className="composer">
+              <h2>Seeds</h2>
+              <form id="seeds" onSubmit={(event) => void submitSeeds(event)}>
+                <label>
+                  DOIs or titles, one per line
+                  <textarea value={seedText} onChange={(event) => setSeedText(event.target.value)} placeholder="10.1056/NEJMoa2034577" />
+                </label>
+                <label>
+                  BibTeX
+                  <textarea value={bibtex} onChange={(event) => setBibtex(event.target.value)} />
+                </label>
+              </form>
+              <SeedPreview resolved={resolved} unresolved={unresolved} onOpen={setReading} />
+              <div className="action-row">
+                <button type="submit" form="seeds" className="secondary" disabled={busy}>Resolve seeds</button>
+                <button type="button" className="primary" onClick={() => void analyze()} disabled={busy}>Analyze</button>
+              </div>
+            </section>
+            <details className="trace-box">
+              <summary>How this run decided</summary>
+              <ol className="trace">
+                {trace.map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.step}</strong> · {item.tool}
+                    <div>{item.output_summary}</div>
+                  </li>
+                ))}
+              </ol>
+            </details>
           </div>
-        ) : null}
+        ) : (
+          <div className="work empty">
+            <h1>Pick a project</h1>
+            <p className="muted">Or create one with a question you actually want answered.</p>
+          </div>
+        )}
       </section>
       {reading ? <Reader paper={reading} onClose={() => setReading(null)} /> : null}
     </main>
   )
+}
+
+function latestTrace(events: AgentEvent[]): AgentEvent[] {
+  let start = 0
+  events.forEach((event, index) => {
+    if (event.step === 'finish' && index < events.length - 1) {
+      start = index + 1
+    }
+  })
+  return events.slice(start)
 }
 
 function Reader({ paper, onClose }: { paper: Paper; onClose: () => void }) {
@@ -308,10 +341,13 @@ function SeedPreview({ resolved, unresolved, onOpen }: { resolved: Paper[]; unre
 }
 
 function authorNames(paper: Paper): string {
-  return paper.authors
+  const names = paper.authors
     .map((author) => (typeof author.name === 'string' ? author.name : ''))
     .filter(Boolean)
-    .join(', ')
+  if (names.length <= 3) {
+    return names.join(', ')
+  }
+  return `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`
 }
 
 function message(err: unknown): string {
