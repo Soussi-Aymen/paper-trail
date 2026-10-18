@@ -1,0 +1,14 @@
+{
+  "name": "COVID-19 vaccine evidence",
+  "research_question": "What clinical trial evidence supports the efficacy and safety of COVID-19 vaccines?",
+  "seeds": [
+    {"doi": "10.1056/NEJMoa2034577"},
+    {"doi": "10.1016/S0140-6736(20)32661-1"}
+  ],
+  "suspects": [
+    {
+      "doi": "10.1016/S0140-6736(97)11096-0",
+      "note": "Retracted Lancet paper. Verification should badge this red."
+    }
+  ]
+}
