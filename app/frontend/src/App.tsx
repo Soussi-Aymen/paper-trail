@@ -28,6 +28,7 @@ export default function App() {
   const [unresolved, setUnresolved] = useState<string[]>([])
   const [events, setEvents] = useState<AgentEvent[]>([])
   const [results, setResults] = useState<Paper[]>([])
+  const [reading, setReading] = useState<Paper | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -145,9 +146,9 @@ export default function App() {
 
   return (
     <main>
-      <header>
-        <h1>Papertrail</h1>
-        <p>From papers you already trust to new ones you can check.</p>
+      <header className="top">
+        <p className="mark">Papertrail</p>
+        <h1>From papers you trust to papers you can check.</h1>
       </header>
       {error ? <p className="error">{error}</p> : null}
       <section className="layout">
@@ -191,7 +192,7 @@ export default function App() {
               </label>
               <button type="submit" disabled={busy}>Resolve seeds</button>
             </form>
-            <SeedPreview resolved={resolved} unresolved={unresolved} />
+            <SeedPreview resolved={resolved} unresolved={unresolved} onOpen={setReading} />
             <button type="button" onClick={() => void analyze()} disabled={busy}>Analyze</button>
             <h3>Trace</h3>
             <ol className="trace">
@@ -206,7 +207,9 @@ export default function App() {
             {results.map((paper) => (
               <article key={paper.id} className="card">
                 <header>
-                  <h4>{paper.title}</h4>
+                  <h4>
+                    <button type="button" className="title" onClick={() => setReading(paper)}>{paper.title}</button>
+                  </h4>
                   <span className={`badge ${paper.badge}`}>{paper.badge}</span>
                 </header>
                 <p>
@@ -242,11 +245,41 @@ export default function App() {
           </div>
         ) : null}
       </section>
+      {reading ? <Reader paper={reading} onClose={() => setReading(null)} /> : null}
     </main>
   )
 }
 
-function SeedPreview({ resolved, unresolved }: { resolved: Paper[]; unresolved: string[] }) {
+function Reader({ paper, onClose }: { paper: Paper; onClose: () => void }) {
+  const publisher = paper.source_urls.find((url) => url !== paper.pdf_url) ?? paper.source_urls[0]
+  return (
+    <aside className="reader">
+      <header>
+        <div>
+          <p className="eyebrow">{paper.status === 'seed' ? 'Seed paper' : 'Suggested paper'}</p>
+          <h2>{paper.title}</h2>
+        </div>
+        <button type="button" onClick={onClose}>Close</button>
+      </header>
+      {paper.pdf_url ? (
+        <>
+          <iframe title={paper.title} src={paper.pdf_url} />
+          <p className="note">
+            Some publishers block embedding. <a href={paper.pdf_url} target="_blank" rel="noreferrer">Open the PDF</a>
+            {publisher ? <> or the <a href={publisher} target="_blank" rel="noreferrer">publisher page</a></> : null}.
+          </p>
+        </>
+      ) : (
+        <p className="note">
+          No open PDF is available for this paper. The full text stays with the publisher.
+          {publisher ? <a href={publisher} target="_blank" rel="noreferrer"> Open the publisher page</a> : null}
+        </p>
+      )}
+    </aside>
+  )
+}
+
+function SeedPreview({ resolved, unresolved, onOpen }: { resolved: Paper[]; unresolved: string[]; onOpen: (paper: Paper) => void }) {
   if (resolved.length === 0 && unresolved.length === 0) {
     return null
   }
@@ -255,7 +288,9 @@ function SeedPreview({ resolved, unresolved }: { resolved: Paper[]; unresolved: 
       <h3>Resolved seeds</h3>
       <ul>
         {resolved.map((paper) => (
-          <li key={paper.id}>{paper.title}</li>
+          <li key={paper.id}>
+            <button type="button" className="title" onClick={() => onOpen(paper)}>{paper.title}</button>
+          </li>
         ))}
       </ul>
       {unresolved.length > 0 ? (

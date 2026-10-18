@@ -167,6 +167,20 @@ def _with_openalex_key(url: str, api_key: str) -> str:
     return f"{url}{separator}api_key={quote(api_key, safe='')}"
 
 
+def _pdf_url(body: dict) -> str | None:
+    found: list[str] = []
+    for location in (body.get("best_oa_location"), body.get("primary_location")):
+        if isinstance(location, dict) and location.get("pdf_url"):
+            found.append(str(location["pdf_url"]))
+    access = body.get("open_access") or {}
+    if isinstance(access, dict) and access.get("oa_url"):
+        found.append(str(access["oa_url"]))
+    for url in found:
+        if url.lower().split("?", 1)[0].endswith(".pdf"):
+            return url
+    return None
+
+
 def short_id(value: str | None) -> str:
     if not value:
         return ""
@@ -188,13 +202,16 @@ def openalex_work(body: dict) -> Work:
         )
     location = body.get("primary_location") or {}
     source = location.get("source") or {}
+    pdf_url = _pdf_url(body)
     urls = []
+    if pdf_url:
+        urls.append(pdf_url)
     if doi:
         urls.append(f"https://doi.org/{doi}")
     if body.get("id"):
         urls.append(str(body["id"]))
     landing = location.get("landing_page_url")
-    if landing:
+    if landing and landing not in urls:
         urls.append(str(landing))
     refs = [short_id(item) for item in body.get("referenced_works") or [] if item]
     return Work(
@@ -213,6 +230,7 @@ def openalex_work(body: dict) -> Work:
             "source": source if isinstance(source, dict) else {},
             "openalex_url": body.get("id"),
             "referenced_works": refs,
+            "pdf_url": pdf_url,
         },
     )
 

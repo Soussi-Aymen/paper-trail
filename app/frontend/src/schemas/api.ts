@@ -24,6 +24,7 @@ export const paperSchema = z.object({
   doi: z.string().nullable(),
   openalex_id: z.string().nullable(),
   source_urls: z.array(z.string()),
+  pdf_url: z.string().nullable(),
   status: z.string(),
   rank_score: z.number().nullable(),
   score_breakdown: z.record(z.string(), z.number()).nullable(),

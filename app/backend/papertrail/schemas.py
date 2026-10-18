@@ -39,6 +39,7 @@ class PaperOut(BaseModel):
     doi: str | None
     openalex_id: str | None
     source_urls: list[str]
+    pdf_url: str | None = None
     status: str
     rank_score: float | None
     score_breakdown: dict | None

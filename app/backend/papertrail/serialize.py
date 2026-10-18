@@ -3,6 +3,16 @@ from papertrail.schemas import CheckOut, PaperOut
 from papertrail.verify import badge_for
 
 
+def _pdf_url(paper: Paper) -> str | None:
+    raw = paper.raw_source or {}
+    if isinstance(raw, dict) and raw.get("pdf_url"):
+        return str(raw["pdf_url"])
+    for url in paper.source_urls or []:
+        if str(url).lower().split("?", 1)[0].endswith(".pdf"):
+            return str(url)
+    return None
+
+
 def to_paper_out(paper: Paper, checks: list[VerificationResult], seed_titles: dict[str, str]) -> PaperOut:
     payloads = [{"check_name": item.check_name, "outcome": item.outcome, "evidence": item.evidence} for item in checks]
     connected: list[str] = []
@@ -23,6 +33,7 @@ def to_paper_out(paper: Paper, checks: list[VerificationResult], seed_titles: di
         doi=paper.doi,
         openalex_id=paper.openalex_id,
         source_urls=list(paper.source_urls or []),
+        pdf_url=_pdf_url(paper),
         status=paper.status,
         rank_score=paper.rank_score,
         score_breakdown=paper.score_breakdown,

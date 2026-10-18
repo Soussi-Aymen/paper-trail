@@ -421,6 +421,14 @@ def _upsert(
         session.flush()
         return paper
     existing.discovery_paths = _merge_paths(existing.discovery_paths or [], paths)
+    pdf_url = (work.raw or {}).get("pdf_url")
+    if pdf_url:
+        raw = dict(existing.raw_source or {})
+        raw["pdf_url"] = pdf_url
+        existing.raw_source = raw
+        urls = list(existing.source_urls or [])
+        if pdf_url not in urls:
+            existing.source_urls = [pdf_url, *urls]
     if work.abstract and not existing.abstract:
         existing.abstract = work.abstract
     if work.is_retracted:
