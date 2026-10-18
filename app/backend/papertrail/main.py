@@ -179,14 +179,21 @@ def list_events(project_id: str, session: Session = Depends(get_session)):
     ]
 
 
+def _split_library(rows: list[Paper]) -> tuple[list[Paper], list[Paper], list[Paper]]:
+    seeds = [row for row in rows if row.status in {"seed", "accepted"}]
+    seeds.sort(key=lambda row: row.title)
+    waiting = [row for row in rows if row.status not in {"seed", "accepted", "rejected"}]
+    waiting.sort(key=lambda row: (-(row.rank_score or 0), row.title))
+    limit = get_settings().max_candidates
+    return seeds, waiting[:limit], waiting[limit:]
+
+
 @app.get("/projects/{project_id}/results", response_model=list[PaperOut])
 def list_results(project_id: str, session: Session = Depends(get_session)):
     if session.get(Project, project_id) is None:
         return problem(404, "project-not-found", "Project not found", "No project has that id.")
     rows = list(session.scalars(select(Paper).where(Paper.project_id == project_id)).all())
-    visible = [row for row in rows if row.status != "seed"]
-    visible.sort(key=lambda row: row.rank_score or 0, reverse=True)
-    visible = visible[: get_settings().max_candidates]
+    visible = _split_library(rows)[1]
     checks = _load_checks(session, visible)
     return [_paper_response(session, row, rows, checks.get(row.id, [])) for row in visible]
 
@@ -196,12 +203,7 @@ def list_library(project_id: str, session: Session = Depends(get_session)):
     if session.get(Project, project_id) is None:
         return problem(404, "project-not-found", "Project not found", "No project has that id.")
     rows = list(session.scalars(select(Paper).where(Paper.project_id == project_id)).all())
-    seeds = [row for row in rows if row.status == "seed"]
-    seeds.sort(key=lambda row: row.title)
-    ranked = [row for row in rows if row.status != "seed"]
-    ranked.sort(key=lambda row: (-(row.rank_score or 0), row.title))
-    top = ranked[: get_settings().max_candidates]
-    rest = ranked[len(top) :]
+    seeds, top, rest = _split_library(rows)
     checks = _load_checks(session, seeds + top + rest)
     return LibraryOut(
         seeds=[_paper_response(session, row, rows, checks.get(row.id, [])) for row in seeds],
@@ -215,7 +217,7 @@ def feedback(paper_id: str, body: FeedbackIn, session: Session = Depends(get_ses
     paper = session.get(Paper, paper_id)
     if paper is None:
         return problem(404, "paper-not-found", "Paper not found", "No paper has that id.")
-    paper.status = "accepted" if body.action == "accept" else "rejected"
+    paper.status = "seed" if body.action == "accept" else "rejected"
     session.commit()
     rerank_project(session, paper.project_id)
     session.refresh(paper)
@@ -251,7 +253,7 @@ def _paper_counts(session: Session) -> dict[str, tuple[int, int]]:
     counts: dict[str, list[int]] = {}
     for project_id, status, count in grouped:
         bucket = counts.setdefault(project_id, [0, 0])
-        if status == "seed":
+        if status in {"seed", "accepted"}:
             bucket[0] += int(count)
         else:
             bucket[1] += int(count)
@@ -290,5 +292,5 @@ def _paper_response(
         checks = list(session.scalars(select(VerificationResult).where(VerificationResult.paper_id == paper.id)).all())
     if all_papers is None:
         all_papers = list(session.scalars(select(Paper).where(Paper.project_id == paper.project_id)).all())
-    titles = {item.id: item.title for item in all_papers if item.status == "seed"}
+    titles = {item.id: item.title for item in all_papers if item.status in {"seed", "accepted"}}
     return to_paper_out(paper, checks, titles, all_papers)

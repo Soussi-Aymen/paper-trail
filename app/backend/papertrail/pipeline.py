@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from papertrail.config import Settings, get_settings
 from papertrail.db import make_engine, prepare_database, session_factory
 from papertrail.explain import explain_paper
-from papertrail.llm import LanguageModel, SearchQueries, TokenFactoryError, build_client
+from papertrail.llm import LanguageModel, SearchQueries, TokenFactoryError, build_client, cached_embedding
 from papertrail.models import AgentEvent, Paper, Project, VerificationResult
 from papertrail.rank import question_similarity, score_paper
 from papertrail.scholarly import Scholarly, Work
@@ -74,7 +74,11 @@ def _analyze(
     llm: LanguageModel,
     project: Project,
 ) -> None:
-    seeds = list(session.scalars(select(Paper).where(Paper.project_id == project.id, Paper.status == "seed")).all())
+    seeds = list(
+        session.scalars(
+            select(Paper).where(Paper.project_id == project.id, Paper.status.in_(("seed", "accepted")))
+        ).all()
+    )
     if not seeds:
         raise TokenFactoryError("Add at least one resolved seed before Analyze.")
     iterations = 1
@@ -264,17 +268,11 @@ def rerank_project(session: Session, project_id: str) -> None:
     negative = mean_vector([list(item) for item in negatives])
     if centroid and negative and len(centroid) == len(negative):
         centroid = [left - 0.35 * right for left, right in zip(centroid, negative, strict=True)]
-    question = []
-    client = None
-    try:
-        client = build_client(settings)
-        question = LanguageModel(settings, session, client).embed(project.research_question)
-    except TokenFactoryError:
-        question = []
+    question = cached_embedding(session, settings, project.research_question)
     year = datetime.now().year
-    seed_count = len([paper for paper in papers if paper.status == "seed"]) or 1
+    seed_count = len([paper for paper in papers if paper.status in {"seed", "accepted"}]) or 1
     for paper in papers:
-        if paper.status in {"seed", "rejected"} or not paper.embedding_json:
+        if paper.status in {"seed", "accepted", "rejected"} or not paper.embedding_json:
             continue
         vector = list(paper.embedding_json)
         score, breakdown = score_paper(
@@ -292,7 +290,11 @@ def rerank_project(session: Session, project_id: str) -> None:
 
 
 def leave_one_out(session: Session, scholarly: Scholarly, project_id: str) -> list[dict]:
-    seeds = list(session.scalars(select(Paper).where(Paper.project_id == project_id, Paper.status == "seed")).all())
+    seeds = list(
+        session.scalars(
+            select(Paper).where(Paper.project_id == project_id, Paper.status.in_(("seed", "accepted")))
+        ).all()
+    )
     hits: list[dict] = []
     for hidden in seeds:
         others = [seed for seed in seeds if seed.id != hidden.id]
@@ -449,7 +451,7 @@ def _find(session: Session, project_id: str, work: Work) -> Paper | None:
 
 def _is_seed(session: Session, project_id: str, work: Work) -> bool:
     found = _find(session, project_id, work)
-    return found is not None and found.status == "seed"
+    return found is not None and found.status in {"seed", "accepted"}
 
 
 def _identity(work: Work) -> str:

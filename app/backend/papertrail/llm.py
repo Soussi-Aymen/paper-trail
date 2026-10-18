@@ -31,6 +31,21 @@ def missing_env(settings: Settings) -> list[str]:
     return missing
 
 
+def embedding_key(settings: Settings, text: str) -> str:
+    return json_key("emb", {"model": settings.embedding_model, "text": text.strip()})
+
+
+def cached_embedding(session: Session, settings: Settings, text: str) -> list[float]:
+    cleaned = text.strip()
+    if not cleaned:
+        return []
+    cached = cache_get(session, embedding_key(settings, cleaned))
+    if cached is None:
+        return []
+    values = cached.get("vector")
+    return [float(item) for item in values] if isinstance(values, list) else []
+
+
 def build_client(settings: Settings) -> OpenAI:
     missing = missing_env(settings)
     if missing:
@@ -113,7 +128,7 @@ class LanguageModel:
         cleaned = text.strip()
         if not cleaned:
             return []
-        key = json_key("emb", {"model": self.settings.embedding_model, "text": cleaned})
+        key = embedding_key(self.settings, cleaned)
         cached = cache_get(self.session, key)
         if cached is not None:
             values = cached.get("vector")

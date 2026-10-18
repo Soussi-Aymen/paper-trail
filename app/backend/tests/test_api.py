@@ -230,13 +230,20 @@ def test_feedback_accepts_or_rejects_without_calling_a_model(client, db, monkeyp
         db,
         Project(id="p", name="N", research_question="Q", status="done"),
         _row("paper", "p", "A paper", "verified", 0.4),
+        _row("next", "p", "Next paper", "candidate", 0.2, doi="10.1000/next"),
     )
     accepted = client.post("/papers/paper/feedback", json={"action": "accept"})
     assert accepted.status_code == 200
-    assert accepted.json()["status"] == "accepted"
+    assert accepted.json()["status"] == "seed"
+    library = client.get("/projects/p/library").json()
+    assert [item["title"] for item in library["seeds"]] == ["A paper"]
+    assert [item["title"] for item in library["results"]] == ["Next paper"]
     rejected = client.post("/papers/paper/feedback", json={"action": "reject"})
     assert rejected.status_code == 200
     assert rejected.json()["status"] == "rejected"
+    library = client.get("/projects/p/library").json()
+    assert library["seeds"] == []
+    assert [item["title"] for item in library["results"]] == ["Next paper"]
 
 
 def test_feedback_rejects_an_unknown_paper_and_an_unknown_action(client):
