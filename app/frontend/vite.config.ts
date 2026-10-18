@@ -1,7 +1,6 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite-plus'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -10,6 +9,13 @@ export default defineConfig({
         target: process.env.API_PROXY_TARGET ?? 'http://localhost:8000',
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+    },
+  },
+  lint: {
+    plugins: ['react', 'typescript', 'oxc'],
+    rules: {
+      'react/rules-of-hooks': 'error',
+      'react/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
 })

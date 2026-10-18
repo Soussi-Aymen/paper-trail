@@ -24,7 +24,7 @@ pnpm-workspace.yaml    packages: ["app/frontend"]
 package.json           private: true
 ```
 
-`app/backend` is not a pnpm package. One `.gitignore` at the repo root. No per-app `.gitignore`. No `packages/shared`. No root `tsconfig.base.json`. The Vite app keeps the tsconfig from its template.
+`app/backend` is not a pnpm package. One `.gitignore` at the repo root. No per-app `.gitignore`. No `packages/shared`. No root `tsconfig.base.json`. The Vite app keeps the tsconfig from its template. Frontend config and Zod parsing follow the use-vite-plus skill.
 
 ## Install
 
