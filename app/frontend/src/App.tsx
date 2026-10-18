@@ -224,10 +224,34 @@ export default function App() {
                       {paper.checks.map((check) => (
                         <li key={check.check_name}>
                           <strong>{check.check_name}</strong> ({check.outcome}): {String(check.evidence.fact ?? '')}
+                          {typeof check.evidence.source_url === 'string' && check.evidence.source_url ? (
+                            <>
+                              {' '}
+                              <a href={check.evidence.source_url} target="_blank" rel="noreferrer">source</a>
+                            </>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
                   </details>
+                  <details>
+                    <summary>References ({paper.references.length})</summary>
+                    <ul className="refs">
+                      {paper.references.map((item) => (
+                        <li key={item.url}>
+                          <a href={item.url} target="_blank" rel="noreferrer">{item.title ?? item.url}</a>
+                          {item.in_project ? <span className="muted"> · also in this project</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                  <ul className="refs">
+                    {sourceLinks(paper).map((url) => (
+                      <li key={url}>
+                        <a href={url} target="_blank" rel="noreferrer">{linkLabel(url)}</a>
+                      </li>
+                    ))}
+                  </ul>
                 </article>
               ))}
             </section>
@@ -338,6 +362,29 @@ function SeedPreview({ resolved, unresolved, onOpen }: { resolved: Paper[]; unre
       ) : null}
     </div>
   )
+}
+
+function sourceLinks(paper: Paper): string[] {
+  const seen = new Set<string>()
+  const urls: string[] = []
+  for (const url of paper.source_urls) {
+    if (seen.has(url) || url === paper.pdf_url) {
+      continue
+    }
+    seen.add(url)
+    urls.push(url)
+  }
+  return urls
+}
+
+function linkLabel(url: string): string {
+  if (url.includes('doi.org')) {
+    return 'DOI record'
+  }
+  if (url.includes('openalex.org')) {
+    return 'OpenAlex record'
+  }
+  return url
 }
 
 function authorNames(paper: Paper): string {

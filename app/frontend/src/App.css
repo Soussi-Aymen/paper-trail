@@ -228,8 +228,13 @@ button:disabled {
   color: #526074;
 }
 
-.trace {
+.trace, .refs {
   margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.refs a {
+  overflow-wrap: anywhere;
 }
 
 .error {

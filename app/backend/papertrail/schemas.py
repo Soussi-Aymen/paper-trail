@@ -23,6 +23,12 @@ class SeedCreate(BaseModel):
     bibtex: str = ""
 
 
+class ReferenceOut(BaseModel):
+    title: str | None = None
+    url: str
+    in_project: bool = False
+
+
 class CheckOut(BaseModel):
     check_name: str
     outcome: str
@@ -48,6 +54,7 @@ class PaperOut(BaseModel):
     explanation: str | None
     explanation_grounded: bool | None
     connected_seeds: list[str]
+    references: list[ReferenceOut] = []
     discovery_paths: list
 
 

@@ -254,4 +254,4 @@ def _paper_response(
     if all_papers is None:
         all_papers = list(session.scalars(select(Paper).where(Paper.project_id == paper.project_id)).all())
     titles = {item.id: item.title for item in all_papers if item.status == "seed"}
-    return to_paper_out(paper, checks, titles)
+    return to_paper_out(paper, checks, titles, all_papers)

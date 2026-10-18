@@ -1,5 +1,5 @@
 from papertrail.models import Paper, VerificationResult
-from papertrail.schemas import CheckOut, PaperOut
+from papertrail.schemas import CheckOut, PaperOut, ReferenceOut
 from papertrail.verify import badge_for
 
 
@@ -13,7 +13,32 @@ def _pdf_url(paper: Paper) -> str | None:
     return None
 
 
-def to_paper_out(paper: Paper, checks: list[VerificationResult], seed_titles: dict[str, str]) -> PaperOut:
+def _references(paper: Paper, by_openalex: dict[str, Paper]) -> list[ReferenceOut]:
+    raw = paper.raw_source or {}
+    stored = raw.get("referenced_works") if isinstance(raw, dict) else None
+    if not isinstance(stored, list):
+        return []
+    found: list[ReferenceOut] = []
+    for item in stored:
+        openalex_id = str(item).rstrip("/").split("/")[-1]
+        if not openalex_id:
+            continue
+        known = by_openalex.get(openalex_id)
+        if known is not None and known.id != paper.id:
+            url = f"https://doi.org/{known.doi}" if known.doi else f"https://openalex.org/{openalex_id}"
+            found.append(ReferenceOut(title=known.title, url=url, in_project=True))
+        else:
+            found.append(ReferenceOut(title=None, url=f"https://openalex.org/{openalex_id}", in_project=False))
+    found.sort(key=lambda item: (not item.in_project, item.title or item.url))
+    return found
+
+
+def to_paper_out(
+    paper: Paper,
+    checks: list[VerificationResult],
+    seed_titles: dict[str, str],
+    papers: list[Paper],
+) -> PaperOut:
     payloads = [{"check_name": item.check_name, "outcome": item.outcome, "evidence": item.evidence} for item in checks]
     connected: list[str] = []
     for path in paper.discovery_paths or []:
@@ -42,5 +67,6 @@ def to_paper_out(paper: Paper, checks: list[VerificationResult], seed_titles: di
         explanation=paper.explanation,
         explanation_grounded=paper.explanation_grounded,
         connected_seeds=connected,
+        references=_references(paper, {item.openalex_id: item for item in papers if item.openalex_id}),
         discovery_paths=list(paper.discovery_paths or []),
     )

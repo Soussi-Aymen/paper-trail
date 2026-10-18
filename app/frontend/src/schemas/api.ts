@@ -14,6 +14,12 @@ export const checkSchema = z.object({
   evidence: z.record(z.string(), z.unknown()),
 })
 
+export const referenceSchema = z.object({
+  title: z.string().nullable(),
+  url: z.string(),
+  in_project: z.boolean(),
+})
+
 export const paperSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -33,6 +39,7 @@ export const paperSchema = z.object({
   explanation: z.string().nullable(),
   explanation_grounded: z.boolean().nullable(),
   connected_seeds: z.array(z.string()),
+  references: z.array(referenceSchema),
   discovery_paths: z.array(z.unknown()),
 })
 
