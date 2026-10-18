@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from papertrail.config import Settings, get_settings
 from papertrail.db import make_engine, prepare_database, session_factory
 from papertrail.explain import explain_paper
-from papertrail.llm import LanguageModel, TokenFactoryError, build_client, parse_json_object
+from papertrail.llm import LanguageModel, SearchQueries, TokenFactoryError, build_client
 from papertrail.models import AgentEvent, Paper, Project, VerificationResult
 from papertrail.rank import question_similarity, score_paper
 from papertrail.scholarly import Scholarly, Work
@@ -162,10 +162,8 @@ def _queries(llm: LanguageModel, project: Project, seeds: list[Paper]) -> list[s
         "Cover methods, synonyms, and an adjacent field. Do not include DOIs.\n\n"
         f"Question: {project.research_question}\nSeeds:\n{titles}"
     )
-    parsed = parse_json_object(llm.chat(llm.settings.chat_model_small, prompt, max_tokens=300))
-    queries: list[str] = []
-    if parsed and isinstance(parsed.get("queries"), list):
-        queries = [str(item).strip() for item in parsed["queries"] if str(item).strip()]
+    parsed = llm.chat_json(llm.settings.chat_model_small, prompt, SearchQueries, max_tokens=300)
+    queries = [item.strip() for item in (parsed.queries if parsed else []) if item.strip()]
     if not queries:
         queries = [project.research_question]
     return queries[:4]

@@ -1,4 +1,4 @@
-from papertrail.llm import LanguageModel, parse_json_object
+from papertrail.llm import GroundedExplanation, LanguageModel
 from papertrail.models import Paper
 
 
@@ -19,22 +19,18 @@ def explain_paper(paper: Paper, seeds: list[Paper], llm: LanguageModel) -> tuple
         "Every quote text must be copied from the abstracts below. "
         "If you cannot ground the claim, set grounded to false and say so.\n\n" + corpus
     )
-    raw = llm.chat(llm.settings.chat_model_large, prompt, max_tokens=500)
-    parsed = parse_json_object(raw)
+    parsed = llm.chat_json(llm.settings.chat_model_large, prompt, GroundedExplanation, max_tokens=500)
     if parsed is None:
-        if raw is None:
+        if llm.stopped_for_budget:
             return "Explanation skipped because the LLM call budget was exhausted.", False
         return "The model did not return grounded JSON, so no explanation was kept.", False
-    quotes = parsed.get("quotes") if isinstance(parsed.get("quotes"), list) else []
     haystack = corpus.lower()
     kept = []
-    for quote in quotes:
-        if not isinstance(quote, dict):
-            continue
-        text = str(quote.get("text") or "").strip()
+    for quote in parsed.quotes:
+        text = quote.text.strip()
         if len(text) >= 12 and text.lower() in haystack:
             kept.append(text)
-    explanation = str(parsed.get("explanation") or "").strip()
+    explanation = parsed.explanation.strip()
     if not kept or not explanation:
         return "The model could not ground a claim in the supplied abstracts.", False
     named = any(seed.title and seed.title.split()[0].lower() in explanation.lower() for seed in linked)

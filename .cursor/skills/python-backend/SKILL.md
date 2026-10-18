@@ -45,3 +45,6 @@ Never pip, poetry, conda, pip-tools, or `python -m venv`. Commit `uv.lock`. Do n
 - Settings: one `pydantic-settings` object loaded from the repo-root `.env`. No `os.environ` reads in handlers.
 - HTTP status codes follow the http-api-status skill.
 - Ruff is the only linter and formatter. Configure it in `pyproject.toml`. Do not add black, flake8, isort, pylint, autopep8, yapf, or mypy.
+- Plain functions. Do not add a plugin system or a second package layout.
+- Run caps live on `Settings` (`max_candidates`, `max_llm_calls_per_run`, `max_planner_iterations`).
+- SQLAlchemy access follows the sqlalchemy-nplus1 skill. LLM JSON follows the llm-structured-output skill.

@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -60,7 +60,7 @@ class DatabaseUnavailable(Exception):
 
 @app.exception_handler(DatabaseUnavailable)
 def database_unavailable(_request: Request, _exc: DatabaseUnavailable):
-    return problem(503, "database-unavailable", "Database unavailable", "Postgres is not reachable.")
+    return problem(503, "database-unavailable", "Database unavailable", "Postgres is not reachable.", retry_after="5")
 
 
 app.add_middleware(
@@ -90,12 +90,12 @@ def root() -> dict[str, str]:
 def health(settings: Settings = Depends(get_settings)):
     status = database_status(settings)
     if not status["ok"]:
-        return problem(503, "database-unavailable", "Database unavailable", str(status["detail"]))
+        return problem(503, "database-unavailable", "Database unavailable", str(status["detail"]), retry_after="5")
     return {"service": "papertrail", "status": "ok", "database": status}
 
 
 @app.post("/projects", status_code=201, response_model=ProjectOut)
-def create_project(body: ProjectCreate, session: Session = Depends(get_session)):
+def create_project(body: ProjectCreate, response: Response, session: Session = Depends(get_session)):
     row = Project(
         id=str(uuid4()),
         name=body.name.strip(),
@@ -104,6 +104,7 @@ def create_project(body: ProjectCreate, session: Session = Depends(get_session))
     )
     session.add(row)
     session.commit()
+    response.headers["Location"] = f"/projects/{row.id}"
     return _project_out(row)
 
 
@@ -134,7 +135,9 @@ def add_seeds(project_id: str, body: SeedCreate, session: Session = Depends(get_
         papers, unresolved = add_resolved_seeds(session, scholarly, project_id, body.dois, body.titles, body.bibtex)
     finally:
         scholarly.close()
-    return SeedResult(resolved=[_paper_response(session, paper) for paper in papers], unresolved=unresolved)
+    checks = _load_checks(session, papers)
+    resolved = [_paper_response(session, paper, papers, checks.get(paper.id, [])) for paper in papers]
+    return SeedResult(resolved=resolved, unresolved=unresolved)
 
 
 @app.post("/projects/{project_id}/analyze", status_code=202, response_model=AnalyzeOut)
@@ -181,7 +184,8 @@ def list_results(project_id: str, session: Session = Depends(get_session)):
     rows = list(session.scalars(select(Paper).where(Paper.project_id == project_id)).all())
     visible = [row for row in rows if row.status != "seed"]
     visible.sort(key=lambda row: row.rank_score or 0, reverse=True)
-    return [_paper_response(session, row, rows) for row in visible]
+    checks = _load_checks(session, visible)
+    return [_paper_response(session, row, rows, checks.get(row.id, [])) for row in visible]
 
 
 @app.post("/papers/{paper_id}/feedback", response_model=PaperOut)
@@ -228,8 +232,24 @@ def _project_out(row: Project) -> ProjectOut:
     )
 
 
-def _paper_response(session: Session, paper: Paper, all_papers: list[Paper] | None = None) -> PaperOut:
-    checks = list(session.scalars(select(VerificationResult).where(VerificationResult.paper_id == paper.id)).all())
+def _load_checks(session: Session, papers: list[Paper]) -> dict[str, list[VerificationResult]]:
+    grouped: dict[str, list[VerificationResult]] = {paper.id: [] for paper in papers}
+    if not papers:
+        return grouped
+    rows = session.scalars(select(VerificationResult).where(VerificationResult.paper_id.in_(list(grouped)))).all()
+    for row in rows:
+        grouped.setdefault(row.paper_id, []).append(row)
+    return grouped
+
+
+def _paper_response(
+    session: Session,
+    paper: Paper,
+    all_papers: list[Paper] | None = None,
+    checks: list[VerificationResult] | None = None,
+) -> PaperOut:
+    if checks is None:
+        checks = list(session.scalars(select(VerificationResult).where(VerificationResult.paper_id == paper.id)).all())
     if all_papers is None:
         all_papers = list(session.scalars(select(Paper).where(Paper.project_id == paper.project_id)).all())
     titles = {item.id: item.title for item in all_papers if item.status == "seed"}

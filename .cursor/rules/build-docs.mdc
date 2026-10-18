@@ -1,5 +1,6 @@
 ---
-description: Keep docs in sync with code
+description: Keep the README in sync with the app
 alwaysApply: true
 ---
-Follow the `build-docs` skill. README.md, DESIGN.md and docs/LESSONS.md must not be stale relative to the code you just wrote. Do not invent extra docs.
+
+Follow `.cursor/skills/build-docs/SKILL.md`. `README.md` must match `.env.example` and the run commands. Do not add extra docs.

@@ -1,4 +1,4 @@
-from papertrail.llm import LanguageModel, parse_json_object
+from papertrail.llm import LanguageModel, MillSignal
 from papertrail.models import Paper
 from papertrail.scholarly import Scholarly
 from papertrail.textutil import titles_match
@@ -227,20 +227,19 @@ def _mill_check(paper: Paper, llm: LanguageModel | None) -> dict:
         "Never claim the paper is fraudulent as a fact.\n\n"
         f"Title: {paper.title}\nAbstract: {paper.abstract[:2000]}"
     )
-    raw = llm.chat(llm.settings.chat_model_small, prompt, max_tokens=200)
-    parsed = parse_json_object(raw)
+    parsed = llm.chat_json(llm.settings.chat_model_small, prompt, MillSignal, max_tokens=200)
     if parsed is None:
         fact = "The style check did not return JSON. This check is never decisive."
-        if raw is None:
+        if llm.stopped_for_budget:
             fact = "LLM budget was exhausted before the style check. This check is never decisive."
         return {
             "check_name": "paper_mill_style",
             "outcome": "unknown",
             "evidence": _evidence("", fact),
         }
-    outcome = "warn" if parsed.get("outcome") == "warn" else "pass"
+    outcome = "warn" if parsed.outcome == "warn" else "pass"
     return {
         "check_name": "paper_mill_style",
         "outcome": outcome,
-        "evidence": _evidence("", str(parsed.get("fact") or "Style check completed.")),
+        "evidence": _evidence("", parsed.fact or "Style check completed."),
     }
