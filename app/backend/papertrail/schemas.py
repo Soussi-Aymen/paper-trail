@@ -15,6 +15,8 @@ class ProjectOut(BaseModel):
     research_question: str
     created_at: datetime
     status: str
+    seed_count: int = 0
+    found_count: int = 0
 
 
 class SeedCreate(BaseModel):
@@ -56,6 +58,25 @@ class PaperOut(BaseModel):
     connected_seeds: list[str]
     references: list[ReferenceOut] = []
     discovery_paths: list
+
+
+class PaperBrief(BaseModel):
+    id: str
+    title: str
+    authors: list[str]
+    year: int | None
+    venue: str | None
+    citation_count: int
+    doi: str | None
+    url: str | None
+    rank_score: float | None
+    badge: str | None
+
+
+class LibraryOut(BaseModel):
+    seeds: list[PaperOut]
+    results: list[PaperOut]
+    found: list[PaperBrief]
 
 
 class SeedResult(BaseModel):

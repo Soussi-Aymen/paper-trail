@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from papertrail.config import Settings, get_settings
@@ -18,6 +18,7 @@ from papertrail.schemas import (
     EvalOut,
     EventOut,
     FeedbackIn,
+    LibraryOut,
     PaperOut,
     ProjectCreate,
     ProjectOut,
@@ -25,7 +26,7 @@ from papertrail.schemas import (
     SeedResult,
 )
 from papertrail.scholarly import Scholarly
-from papertrail.serialize import to_paper_out
+from papertrail.serialize import to_paper_brief, to_paper_out
 
 _factory: sessionmaker[Session] | None = None
 
@@ -111,7 +112,8 @@ def create_project(body: ProjectCreate, response: Response, session: Session = D
 @app.get("/projects", response_model=list[ProjectOut])
 def list_projects(session: Session = Depends(get_session)):
     rows = session.scalars(select(Project).order_by(Project.created_at.desc())).all()
-    return [_project_out(row) for row in rows]
+    counts = _paper_counts(session)
+    return [_project_out(row, *counts.get(row.id, (0, 0))) for row in rows]
 
 
 @app.get("/projects/{project_id}", response_model=ProjectOut)
@@ -119,7 +121,7 @@ def get_project(project_id: str, session: Session = Depends(get_session)):
     row = session.get(Project, project_id)
     if row is None:
         return problem(404, "project-not-found", "Project not found", "No project has that id.")
-    return _project_out(row)
+    return _project_out(row, *_paper_counts(session).get(row.id, (0, 0)))
 
 
 @app.post("/projects/{project_id}/seeds", response_model=SeedResult)
@@ -189,6 +191,25 @@ def list_results(project_id: str, session: Session = Depends(get_session)):
     return [_paper_response(session, row, rows, checks.get(row.id, [])) for row in visible]
 
 
+@app.get("/projects/{project_id}/library", response_model=LibraryOut)
+def list_library(project_id: str, session: Session = Depends(get_session)):
+    if session.get(Project, project_id) is None:
+        return problem(404, "project-not-found", "Project not found", "No project has that id.")
+    rows = list(session.scalars(select(Paper).where(Paper.project_id == project_id)).all())
+    seeds = [row for row in rows if row.status == "seed"]
+    seeds.sort(key=lambda row: row.title)
+    ranked = [row for row in rows if row.status != "seed"]
+    ranked.sort(key=lambda row: (-(row.rank_score or 0), row.title))
+    top = ranked[: get_settings().max_candidates]
+    rest = ranked[len(top) :]
+    checks = _load_checks(session, seeds + top + rest)
+    return LibraryOut(
+        seeds=[_paper_response(session, row, rows, checks.get(row.id, [])) for row in seeds],
+        results=[_paper_response(session, row, rows, checks.get(row.id, [])) for row in top],
+        found=[to_paper_brief(row, checks.get(row.id, [])) for row in rest],
+    )
+
+
 @app.post("/papers/{paper_id}/feedback", response_model=PaperOut)
 def feedback(paper_id: str, body: FeedbackIn, session: Session = Depends(get_session)):
     paper = session.get(Paper, paper_id)
@@ -223,13 +244,29 @@ def evaluate(project_id: str, session: Session = Depends(get_session)):
     )
 
 
-def _project_out(row: Project) -> ProjectOut:
+def _paper_counts(session: Session) -> dict[str, tuple[int, int]]:
+    grouped = session.execute(
+        select(Paper.project_id, Paper.status, func.count()).group_by(Paper.project_id, Paper.status)
+    ).all()
+    counts: dict[str, list[int]] = {}
+    for project_id, status, count in grouped:
+        bucket = counts.setdefault(project_id, [0, 0])
+        if status == "seed":
+            bucket[0] += int(count)
+        else:
+            bucket[1] += int(count)
+    return {project_id: (bucket[0], bucket[1]) for project_id, bucket in counts.items()}
+
+
+def _project_out(row: Project, seed_count: int = 0, found_count: int = 0) -> ProjectOut:
     return ProjectOut(
         id=row.id,
         name=row.name,
         research_question=row.research_question,
         created_at=row.created_at,
         status=row.status,
+        seed_count=seed_count,
+        found_count=found_count,
     )
 
 

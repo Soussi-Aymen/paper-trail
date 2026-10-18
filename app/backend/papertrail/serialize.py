@@ -1,5 +1,5 @@
 from papertrail.models import Paper, VerificationResult
-from papertrail.schemas import CheckOut, PaperOut, ReferenceOut
+from papertrail.schemas import CheckOut, PaperBrief, PaperOut, ReferenceOut
 from papertrail.verify import badge_for
 
 
@@ -69,4 +69,26 @@ def to_paper_out(
         connected_seeds=connected,
         references=_references(paper, {item.openalex_id: item for item in papers if item.openalex_id}),
         discovery_paths=list(paper.discovery_paths or []),
+    )
+
+
+def to_paper_brief(paper: Paper, checks: list[VerificationResult]) -> PaperBrief:
+    names = [str(author["name"]) for author in paper.authors or [] if isinstance(author, dict) and author.get("name")]
+    payloads = [{"outcome": item.outcome} for item in checks]
+    url = f"https://doi.org/{paper.doi}" if paper.doi else None
+    if url is None:
+        for item in paper.source_urls or []:
+            url = str(item)
+            break
+    return PaperBrief(
+        id=paper.id,
+        title=paper.title,
+        authors=names,
+        year=paper.year,
+        venue=paper.venue,
+        citation_count=paper.citation_count,
+        doi=paper.doi,
+        url=url,
+        rank_score=paper.rank_score,
+        badge=badge_for(payloads) if payloads else None,
     )

@@ -6,6 +6,8 @@ export const projectSchema = z.object({
   research_question: z.string(),
   created_at: z.string(),
   status: z.string(),
+  seed_count: z.number(),
+  found_count: z.number(),
 })
 
 export const checkSchema = z.object({
@@ -43,6 +45,25 @@ export const paperSchema = z.object({
   discovery_paths: z.array(z.unknown()),
 })
 
+export const paperBriefSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  authors: z.array(z.string()),
+  year: z.number().nullable(),
+  venue: z.string().nullable(),
+  citation_count: z.number(),
+  doi: z.string().nullable(),
+  url: z.string().nullable(),
+  rank_score: z.number().nullable(),
+  badge: z.string().nullable(),
+})
+
+export const librarySchema = z.object({
+  seeds: z.array(paperSchema),
+  results: z.array(paperSchema),
+  found: z.array(paperBriefSchema),
+})
+
 export const seedResultSchema = z.object({
   resolved: z.array(paperSchema),
   unresolved: z.array(z.string()),
@@ -69,4 +90,5 @@ export const problemSchema = z.object({
 
 export type Project = z.infer<typeof projectSchema>
 export type Paper = z.infer<typeof paperSchema>
+export type PaperBrief = z.infer<typeof paperBriefSchema>
 export type AgentEvent = z.infer<typeof eventSchema>

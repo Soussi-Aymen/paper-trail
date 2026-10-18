@@ -1,20 +1,21 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { z } from 'zod'
 import { api } from './api'
 import {
   analyzeSchema,
   eventSchema,
+  librarySchema,
   paperSchema,
   projectSchema,
   seedResultSchema,
   type AgentEvent,
   type Paper,
+  type PaperBrief,
   type Project,
 } from './schemas/api'
 import './App.css'
 
 const projectsSchema = z.array(projectSchema)
-const papersSchema = z.array(paperSchema)
 const eventsSchema = z.array(eventSchema)
 
 export default function App() {
@@ -24,13 +25,15 @@ export default function App() {
   const [question, setQuestion] = useState('')
   const [seedText, setSeedText] = useState('')
   const [bibtex, setBibtex] = useState('')
-  const [resolved, setResolved] = useState<Paper[]>([])
   const [unresolved, setUnresolved] = useState<string[]>([])
   const [events, setEvents] = useState<AgentEvent[]>([])
+  const [seeds, setSeeds] = useState<Paper[]>([])
   const [results, setResults] = useState<Paper[]>([])
+  const [found, setFound] = useState<PaperBrief[]>([])
   const [reading, setReading] = useState<Paper | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const workRef = useRef<HTMLDivElement>(null)
 
   async function refreshProjects() {
     const rows = await api(projectsSchema, '/projects')
@@ -41,6 +44,14 @@ export default function App() {
   useEffect(() => {
     refreshProjects().catch((err: unknown) => setError(message(err)))
   }, [])
+
+  const selectedId = selected?.id
+  useEffect(() => {
+    if (!selectedId) {
+      return
+    }
+    workRef.current?.scrollIntoView({ block: 'start' })
+  }, [selectedId])
 
   useEffect(() => {
     if (!selected || selected.status !== 'running') {
@@ -55,10 +66,12 @@ export default function App() {
   async function loadProject(id: string) {
     const project = await api(projectSchema, `/projects/${id}`)
     const trace = await api(eventsSchema, `/projects/${id}/events`)
-    const ranked = await api(papersSchema, `/projects/${id}/results`)
+    const library = await api(librarySchema, `/projects/${id}/library`)
     setSelected(project)
     setEvents(trace)
-    setResults(ranked)
+    setSeeds(library.seeds)
+    setResults(library.results)
+    setFound(library.found)
     setProjects((current) => current.map((item) => (item.id === project.id ? project : item)))
   }
 
@@ -73,9 +86,10 @@ export default function App() {
       })
       setName('')
       setQuestion('')
-      setResolved([])
       setUnresolved([])
+      setSeeds([])
       setResults([])
+      setFound([])
       setEvents([])
       await refreshProjects()
       setSelected(created)
@@ -104,8 +118,8 @@ export default function App() {
         method: 'POST',
         body: JSON.stringify({ dois, titles, bibtex }),
       })
-      setResolved(outcome.resolved)
       setUnresolved(outcome.unresolved)
+      await loadProject(selected.id)
     } catch (err: unknown) {
       setError(message(err))
     } finally {
@@ -164,7 +178,14 @@ export default function App() {
                   className={selected?.id === project.id ? 'current' : ''}
                   onClick={() => void loadProject(project.id).catch((err: unknown) => setError(message(err)))}
                 >
-                  <span>{project.name}</span>
+                  <span>
+                    <span>{project.name}</span>
+                    {project.seed_count + project.found_count > 0 ? (
+                      <span className="count">
+                        {project.seed_count} starting · {project.found_count} found
+                      </span>
+                    ) : null}
+                  </span>
                   <span className={`status ${project.status}`}>{project.status}</span>
                 </button>
               </li>
@@ -184,7 +205,7 @@ export default function App() {
           </form>
         </aside>
         {selected ? (
-          <div className="work">
+          <div className="work" ref={workRef}>
             <header className="project-head">
               <div>
                 <h1>{selected.name}</h1>
@@ -192,6 +213,29 @@ export default function App() {
               </div>
               <span className={`status ${selected.status}`}>{selected.status}</span>
             </header>
+            <section>
+              <h2>Papers you started from</h2>
+              {seeds.length === 0 ? <p className="muted">Paste the papers you already trust. Their titles stay on this project.</p> : null}
+              {seeds.map((paper) => (
+                <article key={paper.id} className="card">
+                  <h3>
+                    <button type="button" className="title" onClick={() => setReading(paper)}>{paper.title}</button>
+                  </h3>
+                  <p className="meta">
+                    {authorNames(paper)}
+                    {paper.year ? ` · ${paper.year}` : ''}
+                    {paper.venue ? ` · ${paper.venue}` : ''}
+                    {` · ${paper.citation_count} citations`}
+                  </p>
+                  <div className="actions">
+                    <button type="button" className="primary" onClick={() => setReading(paper)}>Open paper</button>
+                    {paper.doi ? (
+                      <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noreferrer">DOI record</a>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </section>
             <section>
               <h2>Papers to check</h2>
               {results.length === 0 ? <p className="muted">Resolve two or three seeds, then Analyze. You will get a short list, not a dump.</p> : null}
@@ -267,7 +311,7 @@ export default function App() {
                   <textarea value={bibtex} onChange={(event) => setBibtex(event.target.value)} />
                 </label>
               </form>
-              <SeedPreview resolved={resolved} unresolved={unresolved} onOpen={setReading} />
+              <Unresolved lines={unresolved} />
               <div className="action-row">
                 <button type="submit" form="seeds" className="secondary" disabled={busy}>Resolve seeds</button>
                 <button type="button" className="primary" onClick={() => void analyze()} disabled={busy}>Analyze</button>
@@ -284,6 +328,27 @@ export default function App() {
                 ))}
               </ol>
             </details>
+            {found.length > 0 ? (
+              <section>
+                <h2>Also found ({found.length})</h2>
+                <p className="muted">Titles retrieved for this question. Open one to confirm it is the article you expect.</p>
+                <ul className="found">
+                  {found.map((item) => (
+                    <li key={item.id}>
+                      <div>
+                        {item.url ? (
+                          <a href={item.url} target="_blank" rel="noreferrer">{item.title}</a>
+                        ) : (
+                          <span>{item.title}</span>
+                        )}
+                        <p className="meta">{briefMeta(item)}</p>
+                      </div>
+                      {item.badge ? <span className={`badge ${item.badge}`}>{item.badge}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
           </div>
         ) : (
           <div className="work empty">
@@ -336,32 +401,32 @@ function Reader({ paper, onClose }: { paper: Paper; onClose: () => void }) {
   )
 }
 
-function SeedPreview({ resolved, unresolved, onOpen }: { resolved: Paper[]; unresolved: string[]; onOpen: (paper: Paper) => void }) {
-  if (resolved.length === 0 && unresolved.length === 0) {
+function Unresolved({ lines }: { lines: string[] }) {
+  if (lines.length === 0) {
     return null
   }
   return (
     <div>
-      <h3>Resolved seeds</h3>
+      <h3>Unresolved</h3>
       <ul>
-        {resolved.map((paper) => (
-          <li key={paper.id}>
-            <button type="button" className="title" onClick={() => onOpen(paper)}>{paper.title}</button>
-          </li>
+        {lines.map((item) => (
+          <li key={item}>{item}</li>
         ))}
       </ul>
-      {unresolved.length > 0 ? (
-        <>
-          <h3>Unresolved</h3>
-          <ul>
-            {unresolved.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
     </div>
   )
+}
+
+function briefMeta(item: PaperBrief): string {
+  const names = item.authors.slice(0, 3)
+  const author = names.length === 0
+    ? ''
+    : item.authors.length > 3
+      ? `${names.join(', ')} and ${item.authors.length - 3} more`
+      : names.join(', ')
+  return [author, item.year ? String(item.year) : '', item.venue ?? '', `${item.citation_count} citations`]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 function sourceLinks(paper: Paper): string[] {

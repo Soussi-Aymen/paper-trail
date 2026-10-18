@@ -25,7 +25,7 @@ pnpm --filter frontend dev
 
 Open http://localhost:5173. The Vite dev server proxies `/api` to the API.
 
-Create a project, paste DOIs or titles (or BibTeX), resolve the seeds, then click Analyze. The trace updates while the job runs. Each result has a trust badge, the checks behind it, a short explanation, and source links. Accept and reject re-rank from cached embeddings.
+Create a project, paste DOIs or titles (or BibTeX), resolve the seeds, then click Analyze. The trace updates while the job runs. Opening a project shows the papers you started from, a short list to check, and the other article titles that were found, each with year, venue, and a source link. Each result in the short list has a trust badge, the checks behind it, a short explanation, and source links. Accept and reject re-rank from cached embeddings.
 
 `EMBEDDING_DIMENSIONS` must match the embedding model. The probe prints the vector length. The default is 1024. If the probe prints another length, set `EMBEDDING_DIMENSIONS` and recreate the database volume before the first analyze (`docker compose down -v` removes it).
 

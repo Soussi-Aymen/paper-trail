@@ -164,6 +164,37 @@ button:disabled {
   color: #1730b5;
 }
 
+.projects button > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.count {
+  color: #526074;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.found {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.found li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.55rem 0;
+  border-top: 1px solid #e6edf7;
+}
+
+.found a {
+  color: #1730b5;
+  font-weight: 650;
+}
+
 .status {
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -297,10 +328,6 @@ button:disabled {
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
-  }
-
-  .work {
-    order: -1;
   }
 
   .bar {
