@@ -235,6 +235,10 @@ export default function App() {
                       <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noreferrer">DOI record</a>
                     ) : null}
                   </div>
+                  <details>
+                    <summary>Details</summary>
+                    <PaperRecord paper={paper} />
+                  </details>
                 </article>
               ))}
             </section>
@@ -264,40 +268,7 @@ export default function App() {
                     <button type="button" className="secondary" onClick={() => void sendFeedback(paper.id, 'accept')}>Accept</button>
                     <button type="button" className="secondary" onClick={() => void sendFeedback(paper.id, 'reject')}>Reject</button>
                   </div>
-                  <details>
-                    <summary>Why this badge</summary>
-                    <ul>
-                      {paper.checks.map((check) => (
-                        <li key={check.check_name}>
-                          <strong>{check.check_name}</strong> ({check.outcome}): {String(check.evidence.fact ?? '')}
-                          {typeof check.evidence.source_url === 'string' && check.evidence.source_url ? (
-                            <>
-                              {' '}
-                              <a href={check.evidence.source_url} target="_blank" rel="noreferrer">source</a>
-                            </>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                  <details>
-                    <summary>References ({paper.references.length})</summary>
-                    <ul className="refs">
-                      {paper.references.map((item) => (
-                        <li key={item.url}>
-                          <a href={item.url} target="_blank" rel="noreferrer">{item.title ?? item.url}</a>
-                          {item.in_project ? <span className="muted"> · also in this project</span> : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                  <ul className="refs">
-                    {sourceLinks(paper).map((url) => (
-                      <li key={url}>
-                        <a href={url} target="_blank" rel="noreferrer">{linkLabel(url)}</a>
-                      </li>
-                    ))}
-                  </ul>
+                  <PaperRecord paper={paper} />
                 </article>
               ))}
             </section>
@@ -361,6 +332,53 @@ export default function App() {
       </section>
       {reading ? <Reader paper={reading} onClose={() => setReading(null)} /> : null}
     </main>
+  )
+}
+
+function PaperRecord({ paper }: { paper: Paper }) {
+  return (
+    <>
+      {paper.checks.length > 0 ? (
+        <details>
+          <summary>Why this badge</summary>
+          <ul>
+            {paper.checks.map((check) => (
+              <li key={check.check_name}>
+                <strong>{check.check_name}</strong> ({check.outcome}): {String(check.evidence.fact ?? '')}
+                {typeof check.evidence.source_url === 'string' && check.evidence.source_url ? (
+                  <>
+                    {' '}
+                    <a href={check.evidence.source_url} target="_blank" rel="noreferrer">source</a>
+                  </>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : (
+        <p className="muted">No trust checks were run for this paper.</p>
+      )}
+      {paper.references.length > 0 ? (
+        <details>
+          <summary>References ({paper.references.length})</summary>
+          <ul className="refs">
+            {paper.references.map((item) => (
+              <li key={item.url}>
+                <a href={item.url} target="_blank" rel="noreferrer">{item.title ?? item.url}</a>
+                {item.in_project ? <span className="muted"> · also in this project</span> : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      <ul className="refs">
+        {sourceLinks(paper).map((url) => (
+          <li key={url}>
+            <a href={url} target="_blank" rel="noreferrer">{linkLabel(url)}</a>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 
