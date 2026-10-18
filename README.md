@@ -23,7 +23,7 @@ pnpm install
 pnpm --filter frontend dev
 ```
 
-Open http://localhost:5173. The Vite dev server proxies `/api` to the API.
+Open http://localhost:5173. The Vite dev server proxies `/api` to the API. The sun and moon control at the top right is the same height as the Papertrail word. It switches between day and night, keeps the choice in the browser, and either theme can be selected again at any time.
 
 Create a project, paste DOIs or titles (or BibTeX), resolve the seeds, then click Analyze. The trace updates while the job runs. Opening a project shows the papers you started from, a short list to check, and the other article titles that were found, each with year, venue, and a source link. Each result in the short list has a trust badge, the checks behind it, a short explanation, and source links. Accept and reject re-rank from cached embeddings.
 
@@ -40,6 +40,25 @@ uv run python -m scripts.load_fixture
 ```
 
 The fixture has two COVID-19 vaccine trial seeds and one retracted Lancet DOI added as a candidate. After Analyze, that retracted paper should show a red badge. The evidence list names the OpenAlex or Crossref fact and a source URL.
+
+## Tests
+
+The tests do not call Token Factory. API tests stub the catalog. They use Postgres database `papertrail_test` on localhost, with the same user and password as `DATABASE_URL`. Create that database once, after the database container is up:
+
+```bash
+docker compose up db -d
+docker compose exec db psql -U papertrail -d postgres -c "CREATE DATABASE papertrail_test"
+```
+
+```bash
+cd app/backend
+uv run pytest
+```
+
+```bash
+cd app/frontend
+pnpm test
+```
 
 ## Architecture
 
