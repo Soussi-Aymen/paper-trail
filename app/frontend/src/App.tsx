@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { z } from 'zod'
 import { api } from './api'
+import ThemeSwitch from './ThemeSwitch'
 import {
   analyzeSchema,
   eventSchema,
@@ -165,6 +166,7 @@ export default function App() {
       <header className="bar">
         <p className="mark">Papertrail</p>
         <p className="tagline">Start from papers you trust. Keep the ones you can defend.</p>
+        <ThemeSwitch />
       </header>
       {error ? <p className="error">{error}</p> : null}
       <section className="layout">
