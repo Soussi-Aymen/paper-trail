@@ -1,0 +1,5 @@
+---
+description: Plan-mode handoff
+alwaysApply: true
+---
+If asked for a multi-step plan, follow the `plan-steps` skill: write `docs/PLAN.md` (short) and one `docs/prompts/<id>-<slug>.md` per phase. Offer both run paths (A: paste each prompt into its own Agent session; B: Cursor Build with todos linking plan, prompt and OWNS). Do not inline prompt bodies into the plan.

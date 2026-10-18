@@ -1,0 +1,9 @@
+---
+description: Commit owned files after VERIFY; never push
+alwaysApply: true
+---
+
+- When a step VERIFY passes, commit the files that step owns.
+- Never `git push`. Never `--force`. Never create an origin repo.
+- Do not commit `.env` or secrets.
+- The last line of the agent reply must be: Ready to push

@@ -1,0 +1,10 @@
+---
+description: Python in this repo uses uv, Ruff, FastAPI, and Pydantic
+alwaysApply: true
+---
+
+- Python lives only in `app/backend`. Run uv from that directory.
+- Package manager is uv (`uv add`, `uv sync`, `uv run`). Never pip, poetry, conda, pip-tools, or `python -m venv`.
+- Lint and format with Ruff only (`uv run ruff check`, `uv run ruff format`). Never black, flake8, isort, pylint, autopep8, yapf, or mypy.
+- HTTP API is FastAPI. Every request and response body is a Pydantic v2 model. Env is one `pydantic-settings` object. No bare `os.environ` in handlers.
+- Follow `.cursor/skills/python-backend/SKILL.md`.

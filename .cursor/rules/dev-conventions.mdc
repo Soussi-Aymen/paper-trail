@@ -1,0 +1,14 @@
+---
+description: Development conventions for this repo
+alwaysApply: true
+---
+
+- Monorepo: `app/frontend` (pnpm, Vite React TypeScript template) and `app/backend` (uv, FastAPI). Root owns `pnpm-workspace.yaml` and `package.json`.
+- pnpm for the frontend. uv for the backend. Never npm, yarn, pip, poetry, or conda.
+- Ruff is the only Python linter and formatter. FastAPI request and response bodies are Pydantic v2 models.
+- The Vite app keeps the template toolchain. The only frontend config addition is the `/api` proxy.
+- Minimal direct implementations. No config nothing uses yet.
+- Do not add tests, lint rules, or git hooks beyond what a step asks.
+- No Tavily or other model providers. LLM and embeddings go through Nebius Token Factory.
+- Scholarly calls use OpenAlex and Crossref unless a step adds another source behind the same interface.
+- No hardcoded topics, DOIs, or paper titles in application logic. Demo data lives in a JSON fixture.

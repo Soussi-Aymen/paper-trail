@@ -1,0 +1,5 @@
+---
+description: Keep docs in sync with code
+alwaysApply: true
+---
+Follow the `build-docs` skill. README.md, DESIGN.md and docs/LESSONS.md must not be stale relative to the code you just wrote. Do not invent extra docs.
