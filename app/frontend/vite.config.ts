@@ -11,6 +11,10 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    environment: 'happy-dom',
+    setupFiles: ['./src/test-setup.ts'],
+  },
   lint: {
     plugins: ['react', 'typescript', 'oxc'],
     rules: {
