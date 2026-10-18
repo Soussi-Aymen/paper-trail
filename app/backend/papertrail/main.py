@@ -184,6 +184,7 @@ def list_results(project_id: str, session: Session = Depends(get_session)):
     rows = list(session.scalars(select(Paper).where(Paper.project_id == project_id)).all())
     visible = [row for row in rows if row.status != "seed"]
     visible.sort(key=lambda row: row.rank_score or 0, reverse=True)
+    visible = visible[: get_settings().max_candidates]
     checks = _load_checks(session, visible)
     return [_paper_response(session, row, rows, checks.get(row.id, [])) for row in visible]
 
