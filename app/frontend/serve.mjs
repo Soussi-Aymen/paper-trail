@@ -78,4 +78,7 @@ async function readBody(path) {
   }
 }
 
-server.listen(Number(process.env.PORT ?? 5173), '0.0.0.0')
+const port = Number(process.env.PORT ?? 5173)
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Papertrail UI http://localhost:${port}`)
+})

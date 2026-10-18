@@ -3,12 +3,21 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+def _env_file() -> Path | None:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / ".env"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+_ENV_FILE = _env_file()
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(_REPO_ROOT / ".env"),
+        env_file=str(_ENV_FILE) if _ENV_FILE is not None else None,
         env_file_encoding="utf-8",
         extra="ignore",
     )
