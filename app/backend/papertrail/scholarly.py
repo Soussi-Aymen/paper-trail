@@ -30,6 +30,7 @@ class Scholarly:
     def __init__(self, settings: Settings, session: Session) -> None:
         email = settings.scholarly_contact_email.strip() or "unset@example.com"
         self.session = session
+        self.openalex_api_key = settings.openalex_api_key.strip()
         self.client = httpx.Client(
             timeout=40,
             headers={"User-Agent": f"papertrail/0.1 (mailto:{email})"},
@@ -44,10 +45,11 @@ class Scholarly:
         if cached is not None:
             body = cached.get("body")
             return body if isinstance(body, dict) else None
+        request_url = _with_openalex_key(url, self.openalex_api_key)
         last_error: Exception | None = None
         for attempt in range(3):
             try:
-                response = self.client.get(url)
+                response = self.client.get(request_url)
                 if response.status_code == 404:
                     cache_put(self.session, key, "http", {"body": {}})
                     return None
@@ -156,6 +158,13 @@ class Scholarly:
     def author_profile(self, author_id: str) -> dict | None:
         url = f"https://api.openalex.org/authors/{quote(author_id, safe=':/')}"
         return self.get_json(url)
+
+
+def _with_openalex_key(url: str, api_key: str) -> str:
+    if not api_key or "api.openalex.org" not in url:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}api_key={quote(api_key, safe='')}"
 
 
 def short_id(value: str | None) -> str:

@@ -6,7 +6,7 @@ Models run on [Nebius Token Factory](https://docs.tokenfactory.nebius.com/). Pap
 
 ## Run locally
 
-Fill in `.env` from `.env.example`. You need a Token Factory key and three model ids (a small chat model, a large chat model, and an embedding model). List ids with the probe below. Set `SCHOLARLY_CONTACT_EMAIL` so OpenAlex and Crossref can see who is calling.
+Fill in `.env` from `.env.example`. You need a Token Factory key and three model ids (a small chat model, a large chat model, and an embedding model). List ids with the probe below. Set `SCHOLARLY_CONTACT_EMAIL` so OpenAlex and Crossref can see who is calling. Set `OPENALEX_API_KEY` from [openalex.org/settings/api](https://openalex.org/settings/api). The free key includes a daily request budget.
 
 ```bash
 docker compose up db -d

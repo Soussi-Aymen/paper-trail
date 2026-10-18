@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://papertrail:papertrail@localhost:5432/papertrail"
     scholarly_contact_email: str = ""
+    openalex_api_key: str = ""
 
     max_candidates: int = 30
     max_llm_calls_per_run: int = 40
