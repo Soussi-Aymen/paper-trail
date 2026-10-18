@@ -51,7 +51,7 @@ Analyze runs in the API process:
 2. Pull citation neighbors of those seeds.
 3. Ask the small model for a few search queries and run them on OpenAlex.
 4. Drop duplicates and the seeds themselves.
-5. Embed the question, the seeds, and a prefiltered candidate set. Rank with graph overlap, similarity to the question, similarity to the seed centroid, recency, and citations. Keep the top 30.
+5. Embed the question, the seeds, and at most 15 prefiltered candidates. Rank with graph overlap, similarity to the question, similarity to the seed centroid, recency, and citations. Verify and explain only the top 3.
 6. Run the checks below and ask the large model for a grounded explanation.
 
 Every tool writes a row in `agent_events`. That list is the trace on the page.

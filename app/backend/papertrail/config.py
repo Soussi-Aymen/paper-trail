@@ -24,10 +24,10 @@ class Settings(BaseSettings):
     scholarly_contact_email: str = ""
     openalex_api_key: str = ""
 
-    max_candidates: int = 30
-    max_llm_calls_per_run: int = 40
+    max_candidates: int = 3
+    max_llm_calls_per_run: int = 12
     max_planner_iterations: int = 8
-    prefilter_limit: int = 80
+    prefilter_limit: int = 15
     cors_origins: str = "http://localhost:5173"
 
     def cors_origin_list(self) -> list[str]:
