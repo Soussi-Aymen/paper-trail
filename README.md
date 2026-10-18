@@ -62,6 +62,8 @@ pnpm test
 
 ## Architecture
 
+![Papertrail architecture](docs/architecture.jpg)
+
 `app/frontend` is the Vite React TypeScript app. `app/backend` is FastAPI. Postgres with pgvector stores projects, papers, verification rows, the agent trace, and a cache of HTTP, embedding, and chat responses.
 
 Analyze runs in the API process:
