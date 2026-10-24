@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 
 WORKDIR /src
 RUN corepack enable
@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile
 COPY app/frontend app/frontend
 RUN pnpm --filter frontend build
 
-FROM node:22-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 
 WORKDIR /app
 COPY --from=build --chown=node:node /src/app/frontend/dist ./dist
